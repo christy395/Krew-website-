@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 
 type SessionRow = {
   session_id: string;
@@ -143,7 +144,7 @@ async function botApi<T>(env: Env, path: string, init: RequestInit = {}): Promis
 
 async function assertSameOrigin(request: Request): Promise<boolean> {
   const origin = request.headers.get("Origin");
-  return !origin || origin === new URL(request.url).origin;
+  return origin === new URL(request.url).origin;
 }
 
 function jsonError(message: string, status = 400) {
@@ -298,9 +299,9 @@ app.get("/api/guilds", async (c) => {
 
 async function checkGuildAccess(
   request: Request, env: Env, guildId: string
-): Promise<{ session: { row: SessionRow; token: string }; allowed: boolean }> {
+): Promise<{ session: { row: SessionRow; token: string } | null; allowed: boolean }> {
   const session = await loadSession(request, env);
-  if (!session) return { session: null as never, allowed: false };
+  if (!session) return { session: null, allowed: false };
   const guilds = await getManagedDiscordGuilds(session, env);
   return { session, allowed: guilds.some((guild) => guild.id === guildId) };
 }
@@ -318,7 +319,7 @@ app.get("/api/guilds/:guildId", async (c) => {
   }
 });
 
-async function updateGuildSettings(c: Parameters<Parameters<typeof app.patch>[1]>[0], section: string) {
+async function updateGuildSettings(c: Context<{ Bindings: Env }>, section: string) {
   if (!(await assertSameOrigin(c.req.raw))) return jsonError("Invalid request origin.", 403);
   const guildId = c.req.param("guildId");
   const access = await checkGuildAccess(c.req.raw, c.env, guildId);
@@ -347,7 +348,7 @@ async function updateGuildSettings(c: Parameters<Parameters<typeof app.patch>[1]
     if (!Array.isArray(body.roleIds) || body.roleIds.length > 10 || body.roleIds.some((id) => typeof id !== "string" || id.length > 32)) {
       return jsonError("Choose up to 10 valid roles.");
     }
-    if ("autoRoleDelay" in body && (!Number.isInteger(body.autoRoleDelay) || Number(body.autoRoleDelay) < 0 || Number(body.autoRoleDelay) > 3600)) {
+    if ("autoRoleDelay" in body && (typeof body.autoRoleDelay !== "number" || !Number.isInteger(body.autoRoleDelay) || body.autoRoleDelay < 0 || body.autoRoleDelay > 3600)) {
       return jsonError("The role delay must be between 0 and 3600 seconds.");
     }
   }
