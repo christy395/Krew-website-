@@ -40,7 +40,7 @@ Krew Dashboard brings the most-used server settings into one place: welcome mess
 - Node.js 20.10 or newer
 - npm
 - A Discord application with OAuth2 enabled
-- A database connected to the runtime under the binding name `DB`
+- A Neon PostgreSQL database and its connection string
 - The matching Krew Bot management API
 
 ## Local development
@@ -59,9 +59,10 @@ DISCORD_CLIENT_SECRET=your_discord_client_secret
 DISCORD_REDIRECT_URI=http://localhost:5173/api/auth/callback
 KREW_BOT_API_URL=http://localhost:3000
 KREW_DASHBOARD_API_SECRET=use_the_same_long_random_secret_as_the_bot
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
 ```
 
-Create the database named `krew-dashboard`, connect it as `DB`, and apply the SQL in `migrations/0001_auth.sql`. Update the database identifier in `wrangler.jsonc` before running the application.
+Create a Neon project and database, then set its pooled connection string as the server-side `DATABASE_URL` secret. Run the SQL in `migrations/0001_auth.sql` against that Neon database using the Neon SQL Editor or a PostgreSQL client.
 
 Start the development server:
 
@@ -86,7 +87,7 @@ http://localhost:5173/api/auth/callback
 
 For the live environment, add the matching callback URL for your chosen domain and set the same value as `DISCORD_REDIRECT_URI`.
 
-The dashboard requests these OAuth2 scopes:
+The dashboard stores OAuth state and login sessions in Neon PostgreSQL. Keep `DATABASE_URL` private and use the pooled connection string from Neon.\n\nThe dashboard requests these OAuth2 scopes:
 
 - `identify`
 - `guilds`
