@@ -185,20 +185,39 @@ app.get("/api/auth/discord", async (c) => {
     prompt: "consent",
   }).toString();
 
-  return c.redirect(authorize.toString());
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: authorize.toString(),
+      "Set-Cookie": `krew_oauth_state=${encodeURIComponent(state)}; Path=/api/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+      "Cache-Control": "no-store",
+    },
+  });
 });
 
 app.get("/api/auth/callback", async (c) => {
   const code = c.req.query("code");
   const state = c.req.query("state");
-  if (!code || !state) return c.redirect("/?auth=failed");
+  const browserState = cookieValue(c.req.raw, "krew_oauth_state");
+  const clearStateCookie = "krew_oauth_state=; Path=/api/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+  if (!code || !state || !browserState || state !== browserState) {
+    return new Response(null, {
+      status: 302,
+      headers: { Location: "/?auth=invalid-state", "Set-Cookie": clearStateCookie, "Cache-Control": "no-store" },
+    });
+  }
 
   const savedState = await c.env.DB.prepare(
     "SELECT code_verifier FROM oauth_states WHERE state = ? AND expires_at > ?"
   ).bind(state, Math.floor(Date.now() / 1000)).first<{ code_verifier: string }>();
 
   await c.env.DB.prepare("DELETE FROM oauth_states WHERE state = ?").bind(state).run();
-  if (!savedState) return c.redirect("/?auth=invalid-state");
+  if (!savedState) {
+    return new Response(null, {
+      status: 302,
+      headers: { Location: "/?auth=invalid-state", "Set-Cookie": clearStateCookie, "Cache-Control": "no-store" },
+    });
+  }
 
   const redirectUri = c.env.DISCORD_REDIRECT_URI || new URL("/api/auth/callback", c.req.url).toString();
   const tokenResponse = await fetch(`${DISCORD_API}/oauth2/token`, {
@@ -241,7 +260,10 @@ app.get("/api/auth/callback", async (c) => {
     status: 302,
     headers: {
       Location: "/dashboard",
-      "Set-Cookie": setSessionCookie(rawSession, SESSION_DAYS * 86400),
+      "Set-Cookie": [
+        setSessionCookie(rawSession, SESSION_DAYS * 86400),
+        clearStateCookie,
+      ],
       "Cache-Control": "no-store",
     },
   });
