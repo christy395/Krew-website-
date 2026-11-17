@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
-  Activity, ArrowRight, Bell, Bot, Check, ChevronDown, ChevronLeft, ChevronRight,
-  CircleHelp, Clock3, Command, ExternalLink, Hash, LayoutDashboard, LogOut,
+  ArrowRight, Bot, Check, ChevronDown, ChevronRight,
+  CircleHelp, Command, ExternalLink, Hash, LayoutDashboard, LogOut,
   MessageCircle, MessageSquare, Plus, Radio, RefreshCw, Settings2, ShieldCheck,
   Sparkles, Users, WandSparkles, X,
 } from "lucide-react";
@@ -439,11 +440,11 @@ function DiscordGlyph() {
   return <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.73 5.2A18.7 18.7 0 0 0 15.1 3.75l-.57 1.16a17.3 17.3 0 0 0-5.05 0L8.9 3.75A18.6 18.6 0 0 0 4.26 5.2C1.32 9.55.52 13.8.92 18c1.93 1.43 3.8 2.3 5.64 2.88l1.25-2.04c-.69-.25-1.34-.56-1.96-.92l.48-.37c3.78 1.75 7.88 1.75 11.62 0l.48.37c-.62.36-1.28.67-1.96.92l1.25 2.04c1.84-.58 3.71-1.45 5.64-2.88.47-4.88-.8-9.1-3.63-12.8ZM8.57 14.9c-1.13 0-2.05-1.03-2.05-2.3s.9-2.3 2.05-2.3c1.16 0 2.08 1.04 2.06 2.3 0 1.27-.9 2.3-2.06 2.3Zm6.86 0c-1.13 0-2.05-1.03-2.05-2.3s.9-2.3 2.05-2.3c1.16 0 2.08 1.04 2.06 2.3 0 1.27-.9 2.3-2.06 2.3Z" /></svg>;
 }
 
-function StatCard({ label, value, icon, hint, positive = false }: { label: string; value: string; icon: React.ReactNode; hint: string; positive?: boolean }) {
+function StatCard({ label, value, icon, hint, positive = false }: { label: string; value: string; icon: ReactNode; hint: string; positive?: boolean }) {
   return <div className="stat-card"><div className="stat-top"><span>{label}</span><div className="stat-icon">{icon}</div></div><div className="stat-value">{value}</div><div className={positive ? "stat-hint positive" : "stat-hint"}><span className="stat-dot" />{hint}</div></div>;
 }
 
-function QuickCard({ number, icon, title, description, action, onClick }: { number: string; icon: React.ReactNode; title: string; description: string; action: string; onClick: () => void }) {
+function QuickCard({ number, icon, title, description, action, onClick }: { number: string; icon: ReactNode; title: string; description: string; action: string; onClick: () => void }) {
   return <button className="quick-card" onClick={onClick}><div className="quick-top"><span className="quick-icon">{icon}</span><span className="quick-number">{number}</span></div><h3>{title}</h3><p>{description}</p><span className="quick-action">{action}<ArrowRight size={15} /></span></button>;
 }
 
@@ -451,11 +452,11 @@ function PageHeading({ eyebrow, title, description, enabled, onToggle }: { eyebr
   return <div className="page-heading"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{description}</p></div>{onToggle && <div className="heading-toggle"><span className={enabled ? "status-label on" : "status-label"}>{enabled ? "Enabled" : "Disabled"}</span><Switch checked={!!enabled} onChange={onToggle} /></div>}</div>;
 }
 
-function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function Panel({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return <div className="panel"><div className="panel-heading"><div><h3>{title}</h3><p>{description}</p></div></div><div className="panel-body">{children}</div></div>;
 }
 
-function FormRow({ label, description, children }: { label: string; description: string; children: React.ReactNode }) {
+function FormRow({ label, description, children }: { label: string; description: string; children: ReactNode }) {
   return <div className="form-row"><div><strong>{label}</strong><span>{description}</span></div>{children}</div>;
 }
 
