@@ -40,7 +40,7 @@ export type WelcomeConfig = {
   goodbyeChannelId: string | null;
   leaveMessage: string;
   goodbyePing: boolean;
-  leaveEmbed: {
+  goodbyeEmbed: {
     title: string;
     footer: string;
     color: string;
