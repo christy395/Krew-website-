@@ -18,7 +18,6 @@ type Env = {
   DISCORD_CLIENT_ID: string;
   DISCORD_CLIENT_SECRET: string;
   DISCORD_REDIRECT_URI?: string;
-  DISCORD_BOT_TOKEN: string;
   KREW_BOT_API_URL: string;
   KREW_DASHBOARD_API_SECRET: string;
 };
@@ -264,6 +263,20 @@ app.post("/api/auth/logout", async (c) => {
   if (!(await assertSameOrigin(c.req.raw))) return jsonError("Invalid request origin.", 403);
   const session = await loadSession(c.req.raw, c.env);
   if (session) {
+    try {
+      await fetch(`${DISCORD_API}/oauth2/token/revoke`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: c.env.DISCORD_CLIENT_ID,
+          client_secret: c.env.DISCORD_CLIENT_SECRET,
+          token: session.row.refresh_token,
+          token_type_hint: "refresh_token",
+        }),
+      });
+    } catch {
+      // The local session is still removed even if Discord revocation is unavailable.
+    }
     await c.env.DB.prepare("DELETE FROM sessions WHERE session_id = ?")
       .bind(session.row.session_id).run();
   }
