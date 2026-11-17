@@ -256,17 +256,13 @@ app.get("/api/auth/callback", async (c) => {
     now + tokens.expires_in, now, now + SESSION_DAYS * 86400
   ).run();
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: "/dashboard",
-      "Set-Cookie": [
-        setSessionCookie(rawSession, SESSION_DAYS * 86400),
-        clearStateCookie,
-      ],
-      "Cache-Control": "no-store",
-    },
+  const responseHeaders = new Headers({
+    Location: "/dashboard",
+    "Cache-Control": "no-store",
   });
+  responseHeaders.append("Set-Cookie", setSessionCookie(rawSession, SESSION_DAYS * 86400));
+  responseHeaders.append("Set-Cookie", clearStateCookie);
+  return new Response(null, { status: 302, headers: responseHeaders });
 });
 
 app.get("/api/auth/me", async (c) => {
