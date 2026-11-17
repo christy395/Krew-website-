@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
+import { neon } from "@neondatabase/serverless";
 
 type SessionRow = {
   session_id: string;
@@ -13,7 +14,7 @@ type SessionRow = {
 };
 
 type Env = {
-  DB: D1Database;
+  DATABASE_URL: string;
   ASSETS: Fetcher;
   DISCORD_CLIENT_ID: string;
   DISCORD_CLIENT_SECRET: string;
@@ -62,9 +63,9 @@ async function loadSession(request: Request, env: Env): Promise<{ row: SessionRo
   if (!token) return null;
 
   const sessionId = await sha256(token);
-  const row = await env.DB.prepare(
-    "SELECT * FROM sessions WHERE session_id = ? AND expires_at > ?"
-  ).bind(sessionId, Math.floor(Date.now() / 1000)).first<SessionRow>();
+  const sql = neon(env.DATABASE_URL);
+  const rows = await sql`SELECT * FROM sessions WHERE session_id = ${sessionId} AND expires_at > ${Math.floor(Date.now() / 1000)} LIMIT 1`;
+  const row = rows[0] as SessionRow | undefined;
 
   if (!row) return null;
   return { row, token };
@@ -93,9 +94,8 @@ async function getAccessToken(session: { row: SessionRow }, env: Env): Promise<s
   };
 
   const tokenExpiresAt = now + tokens.expires_in;
-  await env.DB.prepare(
-    "UPDATE sessions SET access_token = ?, refresh_token = ?, token_expires_at = ? WHERE session_id = ?"
-  ).bind(tokens.access_token, tokens.refresh_token, tokenExpiresAt, session.row.session_id).run();
+  const sql = neon(env.DATABASE_URL);
+  await sql`UPDATE sessions SET access_token = ${tokens.access_token}, refresh_token = ${tokens.refresh_token}, token_expires_at = ${tokenExpiresAt} WHERE session_id = ${session.row.session_id}`;
 
   session.row.access_token = tokens.access_token;
   session.row.refresh_token = tokens.refresh_token;
@@ -168,9 +168,8 @@ app.get("/api/auth/discord", async (c) => {
   )));
   const expiresAt = Math.floor(Date.now() / 1000) + 600;
 
-  await c.env.DB.prepare(
-    "INSERT INTO oauth_states (state, code_verifier, expires_at) VALUES (?, ?, ?)"
-  ).bind(state, verifier, expiresAt).run();
+  const sql = neon(c.env.DATABASE_URL);
+  await sql`INSERT INTO oauth_states (state, code_verifier, expires_at) VALUES (${state}, ${verifier}, ${expiresAt})`;
 
   const redirectUri = c.env.DISCORD_REDIRECT_URI || new URL("/api/auth/callback", c.req.url).toString();
   const authorize = new URL("https://discord.com/oauth2/authorize");
@@ -207,11 +206,11 @@ app.get("/api/auth/callback", async (c) => {
     });
   }
 
-  const savedState = await c.env.DB.prepare(
-    "SELECT code_verifier FROM oauth_states WHERE state = ? AND expires_at > ?"
-  ).bind(state, Math.floor(Date.now() / 1000)).first<{ code_verifier: string }>();
+  const sql = neon(c.env.DATABASE_URL);
+  const stateRows = await sql`SELECT code_verifier FROM oauth_states WHERE state = ${state} AND expires_at > ${Math.floor(Date.now() / 1000)} LIMIT 1`;
+  const savedState = stateRows[0] as { code_verifier: string } | undefined;
 
-  await c.env.DB.prepare("DELETE FROM oauth_states WHERE state = ?").bind(state).run();
+  await sql`DELETE FROM oauth_states WHERE state = ${state}`;
   if (!savedState) {
     return new Response(null, {
       status: 302,
@@ -247,14 +246,10 @@ app.get("/api/auth/callback", async (c) => {
   const rawSession = randomToken(40);
   const sessionId = await sha256(rawSession);
   const now = Math.floor(Date.now() / 1000);
-  await c.env.DB.prepare(
-    `INSERT INTO sessions
-      (session_id, user_id, username, avatar, access_token, refresh_token, token_expires_at, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    sessionId, user.id, user.username, user.avatar, tokens.access_token, tokens.refresh_token,
-    now + tokens.expires_in, now, now + SESSION_DAYS * 86400
-  ).run();
+  await sql`INSERT INTO sessions
+    (session_id, user_id, username, avatar, access_token, refresh_token, token_expires_at, created_at, expires_at)
+    VALUES (${sessionId}, ${user.id}, ${user.username}, ${user.avatar}, ${tokens.access_token}, ${tokens.refresh_token},
+      ${now + tokens.expires_in}, ${now}, ${now + SESSION_DAYS * 86400})`;
 
   const responseHeaders = new Headers({
     Location: "/dashboard",
@@ -295,8 +290,8 @@ app.post("/api/auth/logout", async (c) => {
     } catch {
       // The local session is still removed even if Discord revocation is unavailable.
     }
-    await c.env.DB.prepare("DELETE FROM sessions WHERE session_id = ?")
-      .bind(session.row.session_id).run();
+    const sql = neon(c.env.DATABASE_URL);
+    await sql`DELETE FROM sessions WHERE session_id = ${session.row.session_id}`;
   }
   return new Response(JSON.stringify({ ok: true }), {
     headers: {
