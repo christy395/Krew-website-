@@ -12,5 +12,9 @@
     "run_worker_first": [
       "/api/*"
     ]
+  },
+  "vars": {
+    "DISCORD_CLIENT_ID": "1519714408324923482",
+    "KREW_BOT_API_URL": "https://krew-bot-1-es8x.onrender.com"
   }
 }
